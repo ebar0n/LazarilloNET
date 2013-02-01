@@ -22,9 +22,9 @@ namespace ProyectoUNET_Kinect
     public partial class MainWindow : Window
     {
 
-        private KinectSensor kinectS;
-        private WriteableBitmap colorBitmap;
-        private byte[] colorPixels;
+        private KinectSensor sensor;
+        private byte[] pixelData;
+        private byte[] depth32;
 
         public MainWindow()
         {
@@ -33,82 +33,193 @@ namespace ProyectoUNET_Kinect
             Loaded += MainWindow_Loaded;
         }
 
+        private void StartSensor()
+        {
+
+            try
+            {
+
+                this.sensor = KinectSensor.KinectSensors[0];
+                if (this.sensor != null && !this.sensor.IsRunning)
+                {
+                    this.sensor.Start();
+                    this.sensor.ColorStream.Enable();
+                    this.sensor.ColorFrameReady += sensor_ColorFrameReady;
+
+                    this.sensor.DepthStream.Enable();
+                    this.sensor.DepthFrameReady += sensor_DepthFrameReady;
+                    this.sensor.DepthStream.Enable(DepthImageFormat.Resolution640x480Fps30);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+
+        void sensor_DepthFrameReady(object sender, DepthImageFrameReadyEventArgs e)
+        {
+            using (DepthImageFrame depthimageFrame = e.OpenDepthImageFrame())
+            {
+                if (depthimageFrame == null)
+                {
+                    return;
+                }
+                short[] pixelData = new short[depthimageFrame.PixelDataLength];
+                
+                depthimageFrame.CopyPixelDataTo(pixelData);
+                
+                depth32 = new byte[depthimageFrame.PixelDataLength * 4];
+                this.GetColorPixelDataWithDistance(pixelData);
+                depthImageControl.Source = BitmapSource.Create(
+                depthimageFrame.Width, depthimageFrame.Height, 96, 96, PixelFormats.
+                Bgr32, null, depth32, depthimageFrame.Width * 4
+                );
+            }
+        }
+
+        private short[] ReversingBitValueWithDistance(DepthImageFrame depthImageFrame, short[] pixelData)
+        {
+                short[] reverseBitPixelData = new short[depthImageFrame.PixelDataLength];
+                int depth;
+                for (int index = 0; index < pixelData.Length; index++)
+                {
+                    depth = pixelData[index] >> DepthImageFrame.
+                        PlayerIndexBitmaskWidth;
+                    if (depth < 1500 || depth > 3500)
+                    {
+                        reverseBitPixelData[index] = (short)~pixelData[index]; ;
+                    }
+                    else
+                    {
+                        reverseBitPixelData[index] = pixelData[index];
+                    }
+                }
+                return reverseBitPixelData;
+         }
+
+        private void GetColorPixelDataWithDistance(short[] depthFrame)
+        {
+                for (int depthIndex = 0, colorIndex = 0; depthIndex < depthFrame.Length && colorIndex < this.depth32.Length; depthIndex++, colorIndex += 4)
+                {
+                    int distance = depthFrame[depthIndex] >> DepthImageFrame.
+                    PlayerIndexBitmaskWidth;
+                    if (distance <= 0)
+                    {
+                        depth32[colorIndex + 2] = 115;
+                        depth32[colorIndex + 1] = 169;
+                        depth32[colorIndex + 0] = 9;
+                    }
+                    else if (distance > 0 && distance <= 1000) {
+                        depth32[colorIndex + 2] = 0;
+                        depth32[colorIndex + 1] = 0;
+                        depth32[colorIndex + 0] = 0;
+                    }
+                    else if (distance > 1000 && distance <= 2500)
+                    {
+                        depth32[colorIndex + 2] = 255;
+                        depth32[colorIndex + 1] = 61;
+                        depth32[colorIndex + 0] = 0;
+                    }
+                    else if (distance > 2500)
+                    {
+                        depth32[colorIndex + 2] = 169;
+                        depth32[colorIndex + 1] = 9;
+                        depth32[colorIndex + 0] = 115;
+                    }
+                }
+        }
+
+
+        void sensor_ColorFrameReady(object sender, ColorImageFrameReadyEventArgs e)
+        {
+   
+            using (ColorImageFrame imageFrame = e.OpenColorImageFrame())
+            {
+                // Check if the incoming frame is not null
+                if (imageFrame == null)
+                {
+                    return;
+                }
+                else
+                {
+                    // Get the pixel data in byte array
+                    this.pixelData = new byte[imageFrame.PixelDataLength];
+                    // Copy the pixel data
+                    imageFrame.CopyPixelDataTo(this.pixelData);
+                    // Calculate the stride
+                    int stride = imageFrame.Width * imageFrame.BytesPerPixel;
+                    // assign the bitmap image source into image control
+                    this.VideoControl.Source = BitmapSource.Create(
+                        imageFrame.Width,
+                        imageFrame.Height,
+                        96,
+                        96,
+                        PixelFormats.Bgr32,
+                        null,
+                        pixelData,
+                        stride);
+                }
+            }
+        }
+        
+        
+        private void StopSensor()
+        {
+            if (this.sensor != null && this.sensor.IsRunning)
+            {
+                this.sensor.Stop();
+            }
+        }
+
         void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            int num = KinectSensor.KinectSensors.Count;//retorna el numero de sensores conectado
-            //MessageBox.Show("" + num);
-            if (num <= 0)
+
+            
+
+            if (KinectSensor.KinectSensors.Count > 0)
             {
-                MessageBox.Show("No hay ningun 'sensor kinect' conectado", "Notificación", MessageBoxButton.OK, MessageBoxImage.Information);
-                Application.Current.Shutdown(-1); //Cerrar la aplicación
+                this.StartSensor();
+                
+                KinectSensor.KinectSensors.StatusChanged += KinectSensors_StatusChanged;
+
             }
             else
             {
-                Closing += MainWindow_Closing;
-                //genera el evento para finalisar el uso del sensor
-                kinectS = KinectSensor.KinectSensors[0];
-                try
-                {
-                    kinectS.ColorStream.Enable(ColorImageFormat.RgbResolution640x480Fps30);
-                    colorPixels = new byte[kinectS.ColorStream.FramePixelDataLength];
-                    colorBitmap = new WriteableBitmap(kinectS.ColorStream.FrameWidth, kinectS.ColorStream.FrameHeight, 96.0, 96.0, PixelFormats.Bgr32, null);
-                
-                }
-                catch (Exception){
-                    MessageBox.Show("Para iniciar la aplicacion conecte el kinect a una toma de corriente", "Notificación", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-
-                visorC.Source = colorBitmap;
-                visorI.Source = colorBitmap;
-               
-                kinectS.AllFramesReady += kinectS_AllFramesReady;
-
-                try
-                {
-                    kinectS.Start();
-                }
-                catch (Exception)
-                {
-                    kinectS = null;
-                    MessageBox.Show("OPS! algo salio mal", "Notificación", MessageBoxButton.OK, MessageBoxImage.Information);
-                    Application.Current.Shutdown(-1); //Cerrar la aplicación
-
-                }
-
-
+                MessageBox.Show("No hay conexion con el sensor!");
+                this.Close();
             }
         }
 
-        void kinectS_AllFramesReady(object sender, AllFramesReadyEventArgs e)
+        void KinectSensors_StatusChanged(object sender, StatusChangedEventArgs e)
         {
-            using (ColorImageFrame colorFrame = e.OpenColorImageFrame())
-            {
-                if (colorFrame != null)
-                {
-                    // Copy the pixel data from the image to a temporary array
-                    colorFrame.CopyPixelDataTo(this.colorPixels);
 
-                    // Write the pixel data into our bitmap
-                    this.colorBitmap.WritePixels(
-                        new Int32Rect(0, 0, this.colorBitmap.PixelWidth, this.colorBitmap.PixelHeight),
-                        this.colorPixels,
-                        this.colorBitmap.PixelWidth * sizeof(int),
-                        0);
-                }
+
+            this.estado.Content = e.Status;
+    
+            switch (e.Status)
+            {
+                case KinectStatus.Connected:
+                    this.StartSensor();
+                    break;
+                
+                case KinectStatus.Disconnected:
+                    this.StopSensor();
+                    // Device DisConnected;
+                    break;
+
+                case KinectStatus.NotPowered:
+                    this.StopSensor();
+                    break;
+
+                case KinectStatus.Initializing:
+                     this.StartSensor();
+                     break;
             }
         }
 
-        void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            if (kinectS != null)
-            {
-                
-                kinectS.Stop();
-
-            }   
-        }
-
-
+       
+        
         public void verificar()
         {
 
@@ -126,7 +237,7 @@ namespace ProyectoUNET_Kinect
                 if (ProcessObj.Length > 1) // si ya hay una aplicación, devolvemos true  
                 {
                     MessageBox.Show("Ya hay una instancia de la aplicación ejecutándose", "Notificación", MessageBoxButton.OK, MessageBoxImage.Information);
-                    Application.Current.Shutdown(-1); //Cerrar la aplicación
+                    this.Close(); //Cerrar la aplicación
                 }
             }
             catch (Exception ex)
@@ -134,6 +245,8 @@ namespace ProyectoUNET_Kinect
                 MessageBox.Show(ex.Message);
             }
         }
+
+       
 
     }
 }
