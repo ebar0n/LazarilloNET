@@ -60,8 +60,7 @@ namespace ProyectoUNET_Kinect
 
                 visorC.Source = colorBitmap;
                 visorI.Source = colorBitmap;
-                visorP.Source = colorBitmap;
-
+               
                 kinectS.AllFramesReady += kinectS_AllFramesReady;
 
                 try

@@ -7,7 +7,5 @@
         </Image>
         <Image Name="visorI" HorizontalAlignment="Left" Height="216" Margin="315,15,0,0" VerticalAlignment="Top" Width="225">
         </Image>
-        <Image Name="visorP" HorizontalAlignment="Left" Height="216" Margin="178,227,0,0" VerticalAlignment="Top" Width="225">
-        </Image>
     </Grid>
 </Window>
