@@ -1,0 +1,13 @@
+﻿<Window x:Class="ProyectoUNET_Kinect.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MainWindow" Height="500" Width="600">
+    <Grid>
+        <Image Name="visorC" HorizontalAlignment="Left" Height="216" Margin="53,15,0,0" VerticalAlignment="Top" Width="225">
+        </Image>
+        <Image Name="visorI" HorizontalAlignment="Left" Height="216" Margin="315,15,0,0" VerticalAlignment="Top" Width="225">
+        </Image>
+        <Image Name="visorP" HorizontalAlignment="Left" Height="216" Margin="178,227,0,0" VerticalAlignment="Top" Width="225">
+        </Image>
+    </Grid>
+</Window>
