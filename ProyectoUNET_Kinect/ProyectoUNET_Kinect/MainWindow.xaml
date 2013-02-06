@@ -1,16 +1,18 @@
 ﻿<Window x:Class="ProyectoUNET_Kinect.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MainWindow" Height="600" Width="700">
-    <Grid>
-        <Label Name="estado" Content="Estado: Iniciando" HorizontalAlignment="Left" Margin="314,80,0,0" VerticalAlignment="Top"/>
-        <Image Name="VideoControl" Stretch="Fill" Margin="30,134,392,191" />
-        <Image Name="depthImageControl" Stretch="Fill" Margin="397,138,32,187" />
+        Title="MainWindow" Height="695" Width="682">
+    <Grid Margin="0,0,3,4">
+        <Label Name="estado" Content="Estado: Iniciando" HorizontalAlignment="Left" Margin="296,60,0,0" VerticalAlignment="Top"/>
+        <Image Name="VideoControl" Stretch="Fill" Margin="30,134,337,252" />
+        <Image Name="depthImageControl" Stretch="Fill" Margin="348,138,32,253" />
         <Rectangle Fill="#FFF4F4F5" HorizontalAlignment="Left" Height="51" Margin="120,418,0,0" Stroke="Black" VerticalAlignment="Top" Width="468"/>
         <Label Content="Nivel de Obstaculos" HorizontalAlignment="Left" Margin="166,432,0,0" VerticalAlignment="Top" Width="125"/>
         <Rectangle Fill="#FFF4F4F5" HorizontalAlignment="Left" Height="51" Margin="118,485,0,0" Stroke="Black" VerticalAlignment="Top" Width="468"/>
         <Label Content="Personas detectadas:" HorizontalAlignment="Left" Margin="164,499,0,0" VerticalAlignment="Top" Width="123"/>
         <Label Name="NumP" Content="0" HorizontalAlignment="Left" Margin="345,500,0,0" VerticalAlignment="Top" Width="223"/>
         <Label Name="Obstaculo"  HorizontalAlignment="Left" Margin="312,428,0,0" VerticalAlignment="Top" Width="261" Height="33"/>
+        <Rectangle Fill="#FFF4F4F5" HorizontalAlignment="Left" Height="51" Margin="123,564,0,0" Stroke="Black" VerticalAlignment="Top" Width="468"/>
+        <Label x:Name="data" Content="0" HorizontalAlignment="Left" Margin="228,575,0,0" VerticalAlignment="Top" Width="223"/>
     </Grid>
 </Window>

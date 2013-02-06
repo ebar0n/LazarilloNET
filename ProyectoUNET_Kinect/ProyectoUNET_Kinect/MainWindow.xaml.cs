@@ -16,6 +16,7 @@ using Microsoft.Kinect;
 using System.Timers;
 using System.Media;
 using System.IO;
+
 namespace ProyectoUNET_Kinect
 {
     /// <summary>
@@ -27,9 +28,8 @@ namespace ProyectoUNET_Kinect
         private KinectSensor sensor;
         private byte[] pixelData;
         private byte[] depth32;
-        private bool personas,obstacu;
-
-
+        private bool personas;
+        
         public MainWindow()
         {
             verificar();
@@ -40,7 +40,6 @@ namespace ProyectoUNET_Kinect
             KinectSensor.KinectSensors.StatusChanged += KinectSensors_StatusChanged;
             
             personas = false;
-            obstacu = false;
 
         }
 
@@ -74,7 +73,7 @@ namespace ProyectoUNET_Kinect
                     this.sensor.ColorStream.Enable(ColorImageFormat.RgbResolution640x480Fps30);
                     this.sensor.ColorFrameReady += sensor_ColorFrameReady;
 
-                    this.sensor.DepthStream.Enable(DepthImageFormat.Resolution640x480Fps30);
+                    this.sensor.DepthStream.Enable(DepthImageFormat.Resolution320x240Fps30);
                     this.sensor.SkeletonStream.Enable();
                     //this.sensor.DepthStream.Range = DepthRange.Near;
                     this.sensor.DepthFrameReady += sensor_DepthFrameReady;
@@ -107,14 +106,13 @@ namespace ProyectoUNET_Kinect
                 depthimageFrame.CopyPixelDataTo(pixelData);
                 
                 depth32 = new byte[depthimageFrame.PixelDataLength * 4];
-                
-                Obstaculo.Content = "";
-                obstacu = false;
                 this.GetColorPixelDataWithDistance(pixelData);//agrega datos solo de profundidad
                 
-                NumP.Content = "";
-                this.TrackPlayer(pixelData);//agrega datos de personas
-                
+                //NumP.Content = "";
+                //this.TrackPlayer(pixelData);//agrega datos de personas
+
+                data.Content = depthimageFrame.PixelDataLength;
+
                 depthImageControl.Source = BitmapSource.Create(
                 depthimageFrame.Width, depthimageFrame.Height, 96, 96, PixelFormats.
                 Bgr32, null, depth32, depthimageFrame.Width * 4
@@ -122,7 +120,7 @@ namespace ProyectoUNET_Kinect
             }
         }
 
-        private short[] ReversingBitValueWithDistance(DepthImageFrame depthImageFrame, short[] pixelData)
+        /*private short[] ReversingBitValueWithDistance(DepthImageFrame depthImageFrame, short[] pixelData)
         {
                 short[] reverseBitPixelData = new short[depthImageFrame.PixelDataLength];
                 int depth;
@@ -140,47 +138,46 @@ namespace ProyectoUNET_Kinect
                     }
                 }
                 return reverseBitPixelData;
-         }
+         }*/
 
         private void GetColorPixelDataWithDistance(short[] depthFrame)
         {
-                for (int depthIndex = 0, colorIndex = 0; depthIndex < depthFrame.Length && colorIndex < this.depth32.Length; depthIndex++, colorIndex += 4)
+            int xi = 0;
+            int xf = 320;
+            int yi = 0;
+            int yf = 240;
+            for (int depthIndex = 0, colorIndex = 0; depthIndex < depthFrame.Length  && colorIndex < this.depth32.Length; depthIndex++, colorIndex += 4)
                 {
-                    int distance = depthFrame[depthIndex] >> DepthImageFrame.PlayerIndexBitmaskWidth;
 
-                    if (distance <= 800)
+
+                    xi++;
+
+                    if (xi >= xf)
                     {
-                        if (obstacu == false && (depthIndex >= 3 ))
+                        xi = 0;
+                        yi++;
+                    }
+
+                    if(xi<= 80 || xi>=220)
+                        continue;
+
+                        int distance = depthFrame[depthIndex] >> DepthImageFrame.PlayerIndexBitmaskWidth;
+                       
+                        if ( distance > 800 && distance <= 2000 )
                         {
-                            obstacu = true;
-                            Obstaculo.Content = "Hay obstaculos muy cerca menores de 800 mm...";
+                            depth32[colorIndex + 2] = 255;
+                            depth32[colorIndex + 1] = 61;
+                            depth32[colorIndex + 0] = 0;
                         }
-                        depth32[colorIndex + 2] = 115;
-                        depth32[colorIndex + 1] = 169;
-                        depth32[colorIndex + 0] = 9;
-                    }
-                    else if (distance > 800 && distance <= 2000)
-                    {
-                        if (obstacu == false)
+                        else if( distance > 2000 && distance <= 3200)
                         {
-                            obstacu = true;
-                            Obstaculo.Content = "Hay obstaculos muy cercanos menores a 2000 mm...";
+                            depth32[colorIndex + 2] = 169;
+                            depth32[colorIndex + 1] = 9;
+                            depth32[colorIndex + 0] = 115;
                         }
-                        depth32[colorIndex + 2] = 255;
-                        depth32[colorIndex + 1] = 61;
-                        depth32[colorIndex + 0] = 0;
-                    }
-                    else if (distance > 2000 && distance<=3000)
-                    {
-                        depth32[colorIndex + 2] = 169;
-                        depth32[colorIndex + 1] = 9;
-                        depth32[colorIndex + 0] = 115;
-                    }
-                    else if( distance>3000 ){
-                        depth32[colorIndex + 2] = 255;
-                        depth32[colorIndex + 1] = 255;
-                        depth32[colorIndex + 0] = 255;
-                    }
+                       
+                    
+
                 }
         }
 
@@ -294,8 +291,6 @@ namespace ProyectoUNET_Kinect
             }
         }
 
-       
-        
         public void verificar()
         {
 
