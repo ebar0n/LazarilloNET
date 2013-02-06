@@ -13,7 +13,9 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Microsoft.Kinect;
-
+using System.Timers;
+using System.Media;
+using System.IO;
 namespace ProyectoUNET_Kinect
 {
     /// <summary>
@@ -25,12 +27,38 @@ namespace ProyectoUNET_Kinect
         private KinectSensor sensor;
         private byte[] pixelData;
         private byte[] depth32;
+        private bool personas,obstacu;
+
 
         public MainWindow()
         {
             verificar();
             InitializeComponent();
             Loaded += MainWindow_Loaded;
+            Closing += MainWindow_Closing;
+
+            KinectSensor.KinectSensors.StatusChanged += KinectSensors_StatusChanged;
+            
+            personas = false;
+            obstacu = false;
+
+        }
+
+        void HayPersonas()
+        {
+                SoundPlayer simpleSound = new SoundPlayer("personas.wav");
+                simpleSound.Play();
+        }
+        void NoHayPersonas()
+        {
+                SoundPlayer simpleSound = new SoundPlayer("personasfuera.wav");
+                simpleSound.Play();
+
+        }
+
+        void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            this.StopSensor();
         }
 
         private void StartSensor()
@@ -43,17 +71,26 @@ namespace ProyectoUNET_Kinect
                 if (this.sensor != null && !this.sensor.IsRunning)
                 {
                     this.sensor.Start();
-                    this.sensor.ColorStream.Enable();
+                    this.sensor.ColorStream.Enable(ColorImageFormat.RgbResolution640x480Fps30);
                     this.sensor.ColorFrameReady += sensor_ColorFrameReady;
 
-                    this.sensor.DepthStream.Enable();
-                    this.sensor.DepthFrameReady += sensor_DepthFrameReady;
                     this.sensor.DepthStream.Enable(DepthImageFormat.Resolution640x480Fps30);
+                    this.sensor.SkeletonStream.Enable();
+                    //this.sensor.DepthStream.Range = DepthRange.Near;
+                    this.sensor.DepthFrameReady += sensor_DepthFrameReady;
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
+            }
+        }
+
+        private void StopSensor()
+        {
+            if (this.sensor != null && this.sensor.IsRunning)
+            {
+                this.sensor.Stop();
             }
         }
 
@@ -70,7 +107,14 @@ namespace ProyectoUNET_Kinect
                 depthimageFrame.CopyPixelDataTo(pixelData);
                 
                 depth32 = new byte[depthimageFrame.PixelDataLength * 4];
-                this.GetColorPixelDataWithDistance(pixelData);
+                
+                Obstaculo.Content = "";
+                obstacu = false;
+                this.GetColorPixelDataWithDistance(pixelData);//agrega datos solo de profundidad
+                
+                NumP.Content = "";
+                this.TrackPlayer(pixelData);//agrega datos de personas
+                
                 depthImageControl.Source = BitmapSource.Create(
                 depthimageFrame.Width, depthimageFrame.Height, 96, 96, PixelFormats.
                 Bgr32, null, depth32, depthimageFrame.Width * 4
@@ -102,32 +146,74 @@ namespace ProyectoUNET_Kinect
         {
                 for (int depthIndex = 0, colorIndex = 0; depthIndex < depthFrame.Length && colorIndex < this.depth32.Length; depthIndex++, colorIndex += 4)
                 {
-                    int distance = depthFrame[depthIndex] >> DepthImageFrame.
-                    PlayerIndexBitmaskWidth;
-                    if (distance <= 0)
+                    int distance = depthFrame[depthIndex] >> DepthImageFrame.PlayerIndexBitmaskWidth;
+
+                    if (distance <= 800)
                     {
+                        if (obstacu == false && (depthIndex >= 3 ))
+                        {
+                            obstacu = true;
+                            Obstaculo.Content = "Hay obstaculos muy cerca menores de 800 mm...";
+                        }
                         depth32[colorIndex + 2] = 115;
                         depth32[colorIndex + 1] = 169;
                         depth32[colorIndex + 0] = 9;
                     }
-                    else if (distance > 0 && distance <= 1000) {
-                        depth32[colorIndex + 2] = 0;
-                        depth32[colorIndex + 1] = 0;
-                        depth32[colorIndex + 0] = 0;
-                    }
-                    else if (distance > 1000 && distance <= 2500)
+                    else if (distance > 800 && distance <= 2000)
                     {
+                        if (obstacu == false)
+                        {
+                            obstacu = true;
+                            Obstaculo.Content = "Hay obstaculos muy cercanos menores a 2000 mm...";
+                        }
                         depth32[colorIndex + 2] = 255;
                         depth32[colorIndex + 1] = 61;
                         depth32[colorIndex + 0] = 0;
                     }
-                    else if (distance > 2500)
+                    else if (distance > 2000 && distance<=3000)
                     {
                         depth32[colorIndex + 2] = 169;
                         depth32[colorIndex + 1] = 9;
                         depth32[colorIndex + 0] = 115;
                     }
+                    else if( distance>3000 ){
+                        depth32[colorIndex + 2] = 255;
+                        depth32[colorIndex + 1] = 255;
+                        depth32[colorIndex + 0] = 255;
+                    }
                 }
+        }
+
+        private void TrackPlayer(short[] depthFrame)
+        {
+               bool ban = false;
+               for (int depthIndex = 0, colorIndex = 0; depthIndex < depthFrame.Length && colorIndex < this.depth32.Length; depthIndex++, colorIndex += 4)
+               {
+                    int player = depthFrame[depthIndex] & DepthImageFrame.PlayerIndexBitmask;
+                    if (player > 0)
+                    {
+                        depth32[colorIndex + 2] = 169;
+                        depth32[colorIndex + 1] = 62;
+                        depth32[colorIndex + 0] = 9;
+                        if (NumP.Content.Equals("") == true)
+                        {
+                            NumP.Content = "Hay personas";
+                            ban = true;
+                        }
+                    }
+                }
+
+               if ( ban==false && personas==true)
+               {
+                   NoHayPersonas();
+                   personas = false;
+               }
+               else if ( ban==true && personas == false) {
+                   HayPersonas();
+                   personas = true;
+               }
+
+
         }
 
 
@@ -163,14 +249,6 @@ namespace ProyectoUNET_Kinect
             }
         }
         
-        
-        private void StopSensor()
-        {
-            if (this.sensor != null && this.sensor.IsRunning)
-            {
-                this.sensor.Stop();
-            }
-        }
 
         void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
@@ -181,8 +259,6 @@ namespace ProyectoUNET_Kinect
             {
                 this.StartSensor();
                 
-                KinectSensor.KinectSensors.StatusChanged += KinectSensors_StatusChanged;
-
             }
             else
             {
